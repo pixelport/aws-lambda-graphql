@@ -2,9 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "target": "es2017",
+    "target": "es2018",
     "module": "commonjs",
-    "outDir": "dist"
+    "outDir": "dist",
+    "lib": ["es2018", "esnext.asynciterable"],
+    "skipLibCheck": true
   },
   "include": ["src"],
   "exclude": [

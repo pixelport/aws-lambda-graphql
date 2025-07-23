@@ -64,7 +64,7 @@ export class TestLambdaServer {
         this.wsServer.close((err) => {
           clearInterval(this.eventProcessingInterval!);
 
-          return err ? reject(err) : resolve();
+          return err ? reject(err) : resolve(undefined);
         });
       }
     });
@@ -152,7 +152,7 @@ export class TestLambdaServer {
         // start event processing
         this.eventProcessingInterval = setInterval(this.processEvents, 20);
         this.wsServer!.removeListener('error', reject);
-        resolve();
+        resolve(undefined);
       });
 
       this.wsServer.on('error', reject);

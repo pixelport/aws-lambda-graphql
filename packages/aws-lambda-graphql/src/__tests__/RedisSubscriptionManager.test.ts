@@ -19,7 +19,9 @@ describe('RedisSubscriptionManager', () => {
 
   describe('subscribersByEventName', () => {
     it('works correctly for emty query result', async () => {
-      const subscriptionManager = new RedisSubscriptionManager({ redisClient });
+      const subscriptionManager = new RedisSubscriptionManager({
+        redisClient: redisClient as any,
+      });
 
       (redisClient.lrange as jest.Mock).mockResolvedValueOnce([]);
 
@@ -38,7 +40,9 @@ describe('RedisSubscriptionManager', () => {
     });
 
     it('works correctly for non emty query result', async () => {
-      const subscriptionManager = new RedisSubscriptionManager({ redisClient });
+      const subscriptionManager = new RedisSubscriptionManager({
+        redisClient: redisClient as any,
+      });
 
       (redisClient.lrange as jest.Mock).mockResolvedValueOnce([{}]);
       (redisClient.lrange as jest.Mock).mockResolvedValueOnce([{}]);
@@ -66,7 +70,9 @@ describe('RedisSubscriptionManager', () => {
 
   describe('subscribe', () => {
     it('subscribes correctly', async () => {
-      const subscriptionManager = new RedisSubscriptionManager({ redisClient });
+      const subscriptionManager = new RedisSubscriptionManager({
+        redisClient: redisClient as any,
+      });
 
       await expect(
         subscriptionManager.subscribe(
@@ -110,7 +116,9 @@ describe('RedisSubscriptionManager', () => {
 
   describe('unsubscribeOperation', () => {
     it('unsubscribes correctly', async () => {
-      const subscriptionManager = new RedisSubscriptionManager({ redisClient });
+      const subscriptionManager = new RedisSubscriptionManager({
+        redisClient: redisClient as any,
+      });
 
       (redisClient.get as jest.Mock).mockResolvedValueOnce('test');
       (redisClient.get as jest.Mock).mockResolvedValueOnce(

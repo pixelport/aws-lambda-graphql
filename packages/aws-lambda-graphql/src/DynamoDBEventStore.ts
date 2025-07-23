@@ -1,5 +1,6 @@
 import assert from 'assert';
-import { DynamoDB } from 'aws-sdk';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ulid } from 'ulid';
 import { IEventStore, ISubscriptionEvent } from './types';
 import { computeTTL } from './helpers';
@@ -16,8 +17,10 @@ const DEFAULT_TTL = 7200;
 interface DynamoDBEventStoreOptions {
   /**
    * Use this to override default document client (for example if you want to use local dynamodb)
+   *
+   * Provide either a DynamoDBDocumentClient or DynamoDBClient (which will be wrapped)
    */
-  dynamoDbClient?: DynamoDB.DocumentClient;
+  dynamoDbClient?: DynamoDBDocumentClient | DynamoDBClient;
   /**
    * Events table name (default is Events)
    */
@@ -40,7 +43,7 @@ interface DynamoDBEventStoreOptions {
  * The server needs to expose DynamoDBEventProcessor handler in order to process these events
  */
 export class DynamoDBEventStore implements IEventStore {
-  private db: DynamoDB.DocumentClient;
+  private db: DynamoDBDocumentClient;
 
   private tableName: string;
 
@@ -57,21 +60,30 @@ export class DynamoDBEventStore implements IEventStore {
     );
     assert.ok(
       dynamoDbClient == null || typeof dynamoDbClient === 'object',
-      'Please provide dynamoDbClient as an instance of DynamoDB.DocumentClient',
+      'Please provide dynamoDbClient as an instance of DynamoDBDocumentClient or DynamoDBClient',
     );
     assert.ok(
       typeof eventsTable === 'string',
       'Please provide eventsTable as a string',
     );
 
-    this.db = dynamoDbClient || new DynamoDB.DocumentClient();
+    // Handle both DynamoDBDocumentClient and DynamoDBClient
+    if (dynamoDbClient) {
+      this.db =
+        dynamoDbClient instanceof DynamoDBDocumentClient
+          ? dynamoDbClient
+          : DynamoDBDocumentClient.from(dynamoDbClient);
+    } else {
+      this.db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    }
+
     this.tableName = eventsTable;
     this.ttl = ttl;
   }
 
   publish = async (event: ISubscriptionEvent): Promise<void> => {
-    await this.db
-      .put({
+    await this.db.send(
+      new PutCommand({
         TableName: this.tableName,
         Item: {
           id: ulid(),
@@ -80,7 +92,7 @@ export class DynamoDBEventStore implements IEventStore {
             ? {}
             : { ttl: computeTTL(this.ttl) }),
         },
-      })
-      .promise();
+      }),
+    );
   };
 }

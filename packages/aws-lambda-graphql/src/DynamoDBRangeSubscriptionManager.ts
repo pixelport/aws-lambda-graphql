@@ -1,5 +1,16 @@
 import assert from 'assert';
-import { DynamoDB } from 'aws-sdk';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  QueryCommand,
+  BatchWriteCommand,
+  TransactWriteCommand,
+  ScanCommand,
+} from '@aws-sdk/lib-dynamodb';
+import type {
+  QueryCommandOutput,
+  ScanCommandOutput,
+} from '@aws-sdk/lib-dynamodb';
 import {
   IConnection,
   ISubscriber,
@@ -31,8 +42,10 @@ interface DynamoDBSubscriber extends ISubscriber {
 interface DynamoDBSubscriptionManagerOptions {
   /**
    * Use this to override default document client (for example if you want to use local dynamodb)
+   *
+   * Provide either a DynamoDBDocumentClient or DynamoDBClient (which will be wrapped)
    */
-  dynamoDbClient?: DynamoDB.DocumentClient;
+  dynamoDbClient?: DynamoDBDocumentClient | DynamoDBClient;
   /**
    * Subscriptions table name (default is Subscriptions)
    */
@@ -82,7 +95,7 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
 
   private subscriptionOperationsTableName: string;
 
-  private db: DynamoDB.DocumentClient;
+  private db: DynamoDBDocumentClient;
 
   private ttl: number | false;
 
@@ -109,12 +122,22 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
     );
     assert.ok(
       dynamoDbClient == null || typeof dynamoDbClient === 'object',
-      'Please provide dynamoDbClient as an instance of DynamoDB.DocumentClient',
+      'Please provide dynamoDbClient as an instance of DynamoDBDocumentClient or DynamoDBClient',
     );
 
     this.subscriptionsTableName = subscriptionsTableName;
     this.subscriptionOperationsTableName = subscriptionOperationsTableName;
-    this.db = dynamoDbClient || new DynamoDB.DocumentClient();
+
+    // Handle both DynamoDBDocumentClient and DynamoDBClient
+    if (dynamoDbClient) {
+      this.db =
+        dynamoDbClient instanceof DynamoDBDocumentClient
+          ? dynamoDbClient
+          : DynamoDBDocumentClient.from(dynamoDbClient);
+    } else {
+      this.db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    }
+
     this.ttl = ttl;
     this.getSubscriptionNameFromEvent = getSubscriptionNameFromEvent;
   }
@@ -122,7 +145,7 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
   subscribersByEvent = (
     event: ISubscriptionEvent,
   ): AsyncIterable<ISubscriber[]> & AsyncIterator<ISubscriber[]> => {
-    let ExclusiveStartKey: DynamoDB.DocumentClient.Key | undefined;
+    let ExclusiveStartKey: Record<string, any> | undefined;
     let done = false;
 
     const name = this.getSubscriptionNameFromEvent(event);
@@ -134,8 +157,8 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
         }
 
         const time = Math.round(Date.now() / 1000);
-        const result = await this.db
-          .query({
+        const result: QueryCommandOutput = await this.db.send(
+          new QueryCommand({
             ExclusiveStartKey,
             TableName: this.subscriptionsTableName,
             Limit: 50,
@@ -148,8 +171,8 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
             ExpressionAttributeNames: {
               '#ttl': 'ttl',
             },
-          })
-          .promise();
+          }),
+        );
 
         ExclusiveStartKey = result.LastEvaluatedKey;
 
@@ -159,7 +182,7 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
 
         // we store connectionData on subscription too so we don't
         // need to load data from connections table
-        const value = result.Items as DynamoDBSubscriber[];
+        const value = (result.Items || []) as DynamoDBSubscriber[];
 
         return { value, done: value.length === 0 };
       },
@@ -184,8 +207,8 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
         ? {}
         : { ttl: computeTTL(this.ttl) };
 
-    await this.db
-      .batchWrite({
+    await this.db.send(
+      new BatchWriteCommand({
         RequestItems: {
           [this.subscriptionsTableName]: names.map((name) => ({
             PutRequest: {
@@ -209,8 +232,8 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
             },
           })),
         },
-      })
-      .promise();
+      }),
+    );
   };
 
   unsubscribe = async (subscriber: ISubscriber) => {
@@ -219,8 +242,8 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
       subscriber.operationId,
     );
 
-    await this.db
-      .transactWrite({
+    await this.db.send(
+      new TransactWriteCommand({
         TransactItems: [
           {
             Delete: {
@@ -241,24 +264,24 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
             },
           },
         ],
-      })
-      .promise();
+      }),
+    );
   };
 
   unsubscribeOperation = async (connectionId: string, operationId: string) => {
-    const operation = await this.db
-      .query({
+    const operation: QueryCommandOutput = await this.db.send(
+      new QueryCommand({
         TableName: this.subscriptionOperationsTableName,
         KeyConditionExpression: 'subscriptionId = :id',
         ExpressionAttributeValues: {
           ':id': this.generateSubscriptionId(connectionId, operationId),
         },
-      })
-      .promise();
+      }),
+    );
 
     if (operation.Items) {
-      await this.db
-        .batchWrite({
+      await this.db.send(
+        new BatchWriteCommand({
           RequestItems: {
             [this.subscriptionsTableName]: operation.Items.map((item) => ({
               DeleteRequest: {
@@ -276,17 +299,17 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
               }),
             ),
           },
-        })
-        .promise();
+        }),
+      );
     }
   };
 
   unsubscribeAllByConnectionId = async (connectionId: string) => {
-    let cursor: DynamoDB.DocumentClient.Key | undefined;
+    let cursor: Record<string, any> | undefined;
 
     do {
-      const { Items, LastEvaluatedKey } = await this.db
-        .scan({
+      const result: ScanCommandOutput = await this.db.send(
+        new ScanCommand({
           TableName: this.subscriptionsTableName,
           ExclusiveStartKey: cursor,
           FilterExpression: 'begins_with(subscriptionId, :connection_id)',
@@ -294,15 +317,17 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
             ':connection_id': connectionId,
           },
           Limit: 12, // Maximum of 25 request items sent to DynamoDB a time
-        })
-        .promise();
+        }),
+      );
+
+      const { Items, LastEvaluatedKey } = result;
 
       if (Items == null || !Items.length) {
         return;
       }
 
-      await this.db
-        .batchWrite({
+      await this.db.send(
+        new BatchWriteCommand({
           RequestItems: {
             [this.subscriptionsTableName]: Items.map((item) => ({
               DeleteRequest: {
@@ -315,8 +340,8 @@ export class DynamoDBRangeSubscriptionManager implements ISubscriptionManager {
               },
             })),
           },
-        })
-        .promise();
+        }),
+      );
 
       cursor = LastEvaluatedKey;
     } while (cursor);

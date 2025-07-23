@@ -1,5 +1,5 @@
 import { DynamoDBRecord } from 'aws-lambda';
-import { DynamoDB } from 'aws-sdk';
+import { marshall } from '@aws-sdk/util-dynamodb';
 import { parse } from 'graphql';
 import { $$asyncIterator, createAsyncIterator } from 'iterall';
 import { formatMessage } from '../formatMessage';
@@ -84,7 +84,7 @@ describe('DynamoDBEventProcessor', () => {
     const Records: DynamoDBRecord[] = [
       {
         dynamodb: {
-          NewImage: DynamoDB.Converter.marshall({
+          NewImage: marshall({
             event: 'test',
             payload: JSON.stringify({ authorId: '1', text: 'test 1' }),
           }) as any,
@@ -93,7 +93,7 @@ describe('DynamoDBEventProcessor', () => {
       },
       {
         dynamodb: {
-          NewImage: DynamoDB.Converter.marshall({
+          NewImage: marshall({
             event: 'test',
             payload: JSON.stringify({ authorId: '2', text: 'test 2' }),
           }) as any,
@@ -218,7 +218,7 @@ describe('DynamoDBEventProcessor', () => {
     const Records: DynamoDBRecord[] = [
       {
         dynamodb: {
-          NewImage: DynamoDB.Converter.marshall({
+          NewImage: marshall({
             event: 'test',
             payload: { authorId: '1', text: 'test 1' },
           }) as any,
@@ -227,7 +227,7 @@ describe('DynamoDBEventProcessor', () => {
       },
       {
         dynamodb: {
-          NewImage: DynamoDB.Converter.marshall({
+          NewImage: marshall({
             event: 'test',
             payload: { authorId: '2', text: 'test 2' },
           }) as any,
@@ -321,7 +321,7 @@ describe('DynamoDBEventProcessor', () => {
     const Records: DynamoDBRecord[] = [
       {
         dynamodb: {
-          NewImage: DynamoDB.Converter.marshall({
+          NewImage: marshall({
             event: 'test',
             payload: JSON.stringify({ authorId: '1', text: 'test 1' }),
           }) as any,
@@ -402,7 +402,7 @@ describe('DynamoDBEventProcessor', () => {
     const Records: DynamoDBRecord[] = [
       {
         dynamodb: {
-          NewImage: DynamoDB.Converter.marshall({
+          NewImage: marshall({
             event: 'test',
             payload: JSON.stringify({ authorId: '1', text: 'test 1' }),
             ttl: computeTTL(-1),
@@ -412,7 +412,7 @@ describe('DynamoDBEventProcessor', () => {
       },
       {
         dynamodb: {
-          NewImage: DynamoDB.Converter.marshall({
+          NewImage: marshall({
             event: 'test',
             payload: JSON.stringify({ authorId: '2', text: 'test 2' }),
             ttl: computeTTL(10),
@@ -422,7 +422,7 @@ describe('DynamoDBEventProcessor', () => {
       },
       {
         dynamodb: {
-          NewImage: DynamoDB.Converter.marshall({
+          NewImage: marshall({
             event: 'test',
             payload: JSON.stringify({ authorId: '1', text: 'test 3' }),
           }) as any,

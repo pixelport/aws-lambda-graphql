@@ -181,9 +181,12 @@ describe('DynamoDBConnectionManager', () => {
 
     it('updates connection data', async () => {
       await expect(
-        manager.setConnectionData({}, { id: 'id', data: {} }),
+        manager.setConnectionData(
+          { context: {}, isInitialized: false },
+          { id: 'id', data: { context: {}, isInitialized: false } },
+        ),
       ).resolves.toBeUndefined();
-      expect(updateMock as jest.Mock).toHaveBeenCalledTimes(1);
+      expect(updateMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -194,13 +197,16 @@ describe('DynamoDBConnectionManager', () => {
 
     it('unregisters connection and all subscriptions if it is stale', async () => {
       const err = new Error();
-      (err as any).statusCode = 410;
+      (err as any).$metadata = { httpStatusCode: 410 };
 
       (postToConnectionPromiseMock as jest.Mock).mockRejectedValueOnce(err);
 
       await expect(
         manager.sendToConnection(
-          { id: 'id', data: { endpoint: '' } },
+          {
+            id: 'id',
+            data: { endpoint: '', context: {}, isInitialized: false },
+          },
           'stringified data',
         ),
       ).resolves.toBeUndefined();
@@ -222,7 +228,10 @@ describe('DynamoDBConnectionManager', () => {
 
       await expect(
         manager.sendToConnection(
-          { id: 'id', data: { endpoint: '' } },
+          {
+            id: 'id',
+            data: { endpoint: '', context: {}, isInitialized: false },
+          },
           'stringified data',
         ),
       ).rejects.toThrowError(err);
@@ -236,7 +245,10 @@ describe('DynamoDBConnectionManager', () => {
 
       await expect(
         manager.sendToConnection(
-          { id: 'id', data: { endpoint: '' } },
+          {
+            id: 'id',
+            data: { endpoint: '', context: {}, isInitialized: false },
+          },
           'stringified data',
         ),
       ).resolves.toBeUndefined();
@@ -253,11 +265,14 @@ describe('DynamoDBConnectionManager', () => {
 
     it('deletes connection', async () => {
       (deletePromiseMock as jest.Mock).mockResolvedValueOnce({
-        Item: { id: 'id', data: {} },
+        Item: { id: 'id', data: { context: {}, isInitialized: false } },
       });
 
       await expect(
-        manager.unregisterConnection({ id: 'id', data: {} }),
+        manager.unregisterConnection({
+          id: 'id',
+          data: { context: {}, isInitialized: false },
+        }),
       ).resolves.toBeUndefined();
 
       expect(deletePromiseMock as jest.Mock).toHaveBeenCalledTimes(1);
@@ -270,7 +285,10 @@ describe('DynamoDBConnectionManager', () => {
     });
     it('closes connection', async () => {
       await expect(
-        manager.closeConnection({ id: 'id', data: {} }),
+        manager.closeConnection({
+          id: 'id',
+          data: { context: {}, isInitialized: false },
+        }),
       ).resolves.toBeUndefined();
       expect(deleteConnectionPromiseMock).toHaveBeenCalledTimes(1);
     });

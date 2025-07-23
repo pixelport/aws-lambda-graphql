@@ -190,20 +190,20 @@ describe('DynamoDBSubscriptionManager', () => {
       expect(transactWritePromiseMock).toHaveBeenCalledTimes(1);
       expect((transactWriteMock as jest.Mock).mock.calls[0][0])
         .toMatchInlineSnapshot(`
-        Object {
-          "TransactItems": Array [
-            Object {
-              "Delete": Object {
-                "Key": Object {
+        {
+          "TransactItems": [
+            {
+              "Delete": {
+                "Key": {
                   "event": "test",
                   "subscriptionId": "1:1",
                 },
                 "TableName": "Subscriptions",
               },
             },
-            Object {
-              "Delete": Object {
-                "Key": Object {
+            {
+              "Delete": {
+                "Key": {
                   "subscriptionId": "1:1",
                 },
                 "TableName": "SubscriptionOperations",

@@ -39,7 +39,10 @@
     "ulid": "^2.3.0"
   },
   "peerDependencies": {
-    "aws-sdk": "^2.387.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.848.0",
+    "@aws-sdk/client-dynamodb": "^3.848.0",
+    "@aws-sdk/lib-dynamodb": "^3.850.0",
+    "@aws-sdk/util-dynamodb": "^3.848.0",
     "graphql": "^14.x || ^15.x",
     "graphql-subscriptions": "^1.0.0",
     "ioredis": "^4.17.3"
@@ -49,10 +52,12 @@
   },
   "engineStrict": true,
   "devDependencies": {
+    "@types/node": "^10.17.5",
     "apollo-link": "^1.2.11",
     "graphql-tag": "^2.10.1",
     "graphql-tools": "^4.0.6",
     "mock-socket": "^8.0.5",
+    "rimraf": "^6.0.1",
     "subscriptions-transport-ws": "^0.9.16",
     "wait-for-expect": "1.1.0"
   },

@@ -82,7 +82,7 @@ describe('Server', () => {
     };
     const subscriptionManager: ISubscriptionManager = {
       subscribe: jest.fn(),
-      subscribersByEventName: jest.fn(),
+      subscribersByEvent: jest.fn(),
       unsubscribe: jest.fn(),
       unsubscribeAllByConnectionId: jest.fn(),
       unsubscribeOperation: jest.fn(),
@@ -1008,8 +1008,7 @@ describe('Server', () => {
             {
               body: formatMessage({
                 id,
-                payload: null,
-                type: CLIENT_EVENT_TYPES.GQL_CONNECTION_TERMINATE,
+                type: CLIENT_EVENT_TYPES.GQL_STOP,
               }),
               requestContext: {
                 connectionId: '1',

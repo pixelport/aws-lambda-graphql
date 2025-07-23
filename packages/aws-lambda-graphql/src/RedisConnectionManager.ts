@@ -1,5 +1,9 @@
 import assert from 'assert';
-import { ApiGatewayManagementApi } from 'aws-sdk';
+import {
+  ApiGatewayManagementApiClient,
+  PostToConnectionCommand,
+  DeleteConnectionCommand,
+} from '@aws-sdk/client-apigatewaymanagementapi';
 import { Redis } from 'ioredis';
 import { ConnectionNotFoundError } from './errors';
 import {
@@ -14,11 +18,11 @@ import { prefixRedisKey } from './helpers';
 
 interface RedisConnectionManagerOptions {
   /**
-   * Use this to override ApiGatewayManagementApi (for example in usage with serverless-offline)
+   * Use this to override ApiGatewayManagementApiClient (for example in usage with serverless-offline)
    *
    * If not provided it will be created with endpoint from connections
    */
-  apiGatewayManager?: ApiGatewayManagementApi;
+  apiGatewayManager?: ApiGatewayManagementApiClient;
   /**
    * IORedis client instance
    */
@@ -32,7 +36,7 @@ interface RedisConnectionManagerOptions {
  * Stores connections in Redis store
  */
 export class RedisConnectionManager implements IConnectionManager {
-  private apiGatewayManager: ApiGatewayManagementApi | undefined;
+  private apiGatewayManager: ApiGatewayManagementApiClient | undefined;
 
   private redisClient: Redis;
 
@@ -53,7 +57,7 @@ export class RedisConnectionManager implements IConnectionManager {
     );
     assert.ok(
       apiGatewayManager == null || typeof apiGatewayManager === 'object',
-      'Please provide apiGatewayManager as an instance of ApiGatewayManagementApi',
+      'Please provide apiGatewayManager as an instance of ApiGatewayManagementApiClient',
     );
 
     this.apiGatewayManager = apiGatewayManager;
@@ -130,13 +134,16 @@ export class RedisConnectionManager implements IConnectionManager {
     payload: string | Buffer,
   ): Promise<void> => {
     try {
-      await this.createApiGatewayManager(connection.data.endpoint)
-        .postToConnection({ ConnectionId: connection.id, Data: payload })
-        .promise();
+      await this.createApiGatewayManager(connection.data.endpoint).send(
+        new PostToConnectionCommand({
+          ConnectionId: connection.id,
+          Data: payload,
+        }),
+      );
     } catch (e) {
       // this is stale connection
       // remove it from store
-      if (e && e.statusCode === 410) {
+      if (e && (e as any).$metadata?.httpStatusCode === 410) {
         await this.unregisterConnection(connection);
       } else {
         throw e;
@@ -153,9 +160,9 @@ export class RedisConnectionManager implements IConnectionManager {
   };
 
   closeConnection = async ({ id, data }: IConnection): Promise<void> => {
-    await this.createApiGatewayManager(data.endpoint)
-      .deleteConnection({ ConnectionId: id })
-      .promise();
+    await this.createApiGatewayManager(data.endpoint).send(
+      new DeleteConnectionCommand({ ConnectionId: id }),
+    );
   };
 
   /**
@@ -163,12 +170,14 @@ export class RedisConnectionManager implements IConnectionManager {
    *
    * If custom api gateway manager is provided, uses it instead
    */
-  private createApiGatewayManager(endpoint: string): ApiGatewayManagementApi {
+  private createApiGatewayManager(
+    endpoint: string,
+  ): ApiGatewayManagementApiClient {
     if (this.apiGatewayManager) {
       return this.apiGatewayManager;
     }
 
-    this.apiGatewayManager = new ApiGatewayManagementApi({ endpoint });
+    this.apiGatewayManager = new ApiGatewayManagementApiClient({ endpoint });
 
     return this.apiGatewayManager;
   }

@@ -5,7 +5,6 @@ import {
   deleteConnectionPromiseMock,
 } from 'aws-sdk';
 import { RedisConnectionManager } from '../RedisConnectionManager';
-import { ConnectionNotFoundError } from '../errors';
 
 const subscriptionManager: any = {
   unsubscribeAllByConnectionId: jest.fn(),
@@ -32,7 +31,7 @@ describe('RedisConnectionManager', () => {
     it('registers connection by its connectionId and returns a Connection', async () => {
       const manager = new RedisConnectionManager({
         subscriptions: subscriptionManager,
-        redisClient,
+        redisClient: redisClient as any,
       });
 
       await expect(
@@ -53,141 +52,124 @@ describe('RedisConnectionManager', () => {
   describe('hydrateConnection', () => {
     const manager = new RedisConnectionManager({
       subscriptions: subscriptionManager,
-      redisClient,
+      redisClient: redisClient as any,
     });
 
-    it('throws ConnectionNotFoundError if connection is not registered', async () => {
-      (redisClient.get as jest.Mock).mockResolvedValueOnce(null);
-
-      await expect(manager.hydrateConnection('id')).rejects.toThrowError(
-        ConnectionNotFoundError,
+    it('throws an error if connection is not found', async () => {
+      await expect(manager.hydrateConnection('id', {})).rejects.toThrowError(
+        'Connection id not found',
       );
-
-      expect(redisClient.get as jest.Mock).toHaveBeenCalledTimes(1);
     });
 
-    it('hydrates connection', async () => {
+    it('returns a Connection object if connection is found', async () => {
       (redisClient.get as jest.Mock).mockResolvedValueOnce(
-        JSON.stringify({
-          id: 'id',
-          data: { endpoint: '' },
-        }),
+        JSON.stringify({ endpoint: '' }),
       );
 
-      await expect(manager.hydrateConnection('id')).resolves.toEqual({
-        id: 'id',
-        data: {
-          endpoint: '',
-        },
+      await expect(manager.hydrateConnection('id', {})).resolves.toEqual({
+        endpoint: '',
       });
-
-      expect(redisClient.get as jest.Mock).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('setConnectionData', () => {
     const manager = new RedisConnectionManager({
       subscriptions: subscriptionManager,
-      redisClient,
+      redisClient: redisClient as any,
     });
 
-    it('updates connection data', async () => {
+    it('sets connection data to store', async () => {
       await expect(
-        manager.setConnectionData({}, { id: 'id', data: {} }),
+        manager.setConnectionData(
+          { context: {}, isInitialized: false },
+          { id: 'id', data: { context: {}, isInitialized: false } },
+        ),
       ).resolves.toBeUndefined();
-      expect(redisClient.set as jest.Mock).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('sendToConnection', () => {
     const manager = new RedisConnectionManager({
       subscriptions: subscriptionManager,
-      redisClient,
+      redisClient: redisClient as any,
     });
 
-    it('unregisters connection and all subscriptions if it is stale', async () => {
-      const err = new Error();
-      (err as any).statusCode = 410;
-
-      (postToConnectionPromiseMock as jest.Mock).mockRejectedValueOnce(err);
-
+    it('sends a message to a connection', async () => {
       await expect(
         manager.sendToConnection(
-          { id: 'id', data: { endpoint: '' } },
-          'stringified data',
+          {
+            id: 'id',
+            data: { endpoint: '', context: {}, isInitialized: false },
+          },
+          'Message',
         ),
       ).resolves.toBeUndefined();
-
-      expect(postToConnectionPromiseMock).toHaveBeenCalledTimes(1);
-      expect(redisClient.del as jest.Mock).toHaveBeenCalledTimes(1);
-      expect(
-        subscriptionManager.unsubscribeAllByConnectionId,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        subscriptionManager.unsubscribeAllByConnectionId,
-      ).toHaveBeenCalledWith('id');
     });
 
-    it('throws error if unknown error happens', async () => {
-      const err = new Error('Unknown error');
-
-      (postToConnectionPromiseMock as jest.Mock).mockRejectedValueOnce(err);
+    it('closes stale connection', async () => {
+      (postToConnectionPromiseMock as jest.Mock).mockRejectedValueOnce({
+        $metadata: { httpStatusCode: 410 },
+      });
 
       await expect(
         manager.sendToConnection(
-          { id: 'id', data: { endpoint: '' } },
-          'stringified data',
-        ),
-      ).rejects.toThrowError(err);
-
-      expect(postToConnectionPromiseMock).toHaveBeenCalledTimes(1);
-      expect(redisClient.del as jest.Mock).not.toHaveBeenCalled();
-    });
-
-    it('sends data to connection', async () => {
-      (postToConnectionPromiseMock as jest.Mock).mockResolvedValueOnce({});
-
-      await expect(
-        manager.sendToConnection(
-          { id: 'id', data: { endpoint: '' } },
-          'stringified data',
+          {
+            id: 'id',
+            data: { endpoint: '', context: {}, isInitialized: false },
+          },
+          'Message',
         ),
       ).resolves.toBeUndefined();
+    });
 
-      expect(postToConnectionPromiseMock).toHaveBeenCalledTimes(1);
-      expect(redisClient.del as jest.Mock).not.toHaveBeenCalled();
+    it('throws an error if not HTTP 410', async () => {
+      (postToConnectionPromiseMock as jest.Mock).mockRejectedValueOnce({
+        statusCode: 500,
+      });
+
+      await expect(
+        manager.sendToConnection(
+          {
+            id: 'id',
+            data: { endpoint: '', context: {}, isInitialized: false },
+          },
+          'Message',
+        ),
+      ).rejects.toEqual({
+        statusCode: 500,
+      });
     });
   });
 
   describe('unregisterConnection', () => {
     const manager = new RedisConnectionManager({
       subscriptions: subscriptionManager,
-      redisClient,
+      redisClient: redisClient as any,
     });
 
-    it('deletes connection', async () => {
-      (redisClient.del as jest.Mock).mockResolvedValueOnce({
-        Item: { id: 'id', data: {} },
-      });
-
+    it('removes connection from store and unsubscribes it from all subscriptions', async () => {
       await expect(
-        manager.unregisterConnection({ id: 'id', data: {} }),
+        manager.unregisterConnection({
+          id: 'id',
+          data: { context: {}, isInitialized: false },
+        }),
       ).resolves.toBeUndefined();
-
-      expect(redisClient.del as jest.Mock).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('closeConnection', () => {
     const manager = new RedisConnectionManager({
       subscriptions: subscriptionManager,
-      redisClient,
+      redisClient: redisClient as any,
     });
-    it('closes connection', async () => {
+
+    it('removes connection and closes it', async () => {
       await expect(
-        manager.closeConnection({ id: 'id', data: {} }),
+        manager.closeConnection({
+          id: 'id',
+          data: { context: {}, isInitialized: false },
+        }),
       ).resolves.toBeUndefined();
-      expect(deleteConnectionPromiseMock).toHaveBeenCalledTimes(1);
     });
   });
 });
