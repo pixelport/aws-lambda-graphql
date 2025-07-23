@@ -122,9 +122,17 @@ export class DynamoDBConnectionManager implements IConnectionManager {
       this.db =
         dynamoDbClient instanceof DynamoDBDocumentClient
           ? dynamoDbClient
-          : DynamoDBDocumentClient.from(dynamoDbClient);
+          : DynamoDBDocumentClient.from(dynamoDbClient, {
+              marshallOptions: {
+                convertClassInstanceToMap: true,
+              },
+            });
     } else {
-      this.db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+      this.db = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
+        marshallOptions: {
+          convertClassInstanceToMap: true,
+        },
+      });
     }
 
     this.subscriptions = subscriptions;
