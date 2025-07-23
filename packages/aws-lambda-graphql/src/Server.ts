@@ -286,6 +286,13 @@ export class Server<
             const endpoint =
               connectionEndpoint || extractEndpointFromEvent(event);
 
+            console.log('[DEBUG] Server $connect route:', {
+              customConnectionEndpoint: connectionEndpoint,
+              extractedEndpoint: extractEndpointFromEvent(event),
+              finalEndpoint: endpoint,
+              connectionId: event.requestContext.connectionId,
+            });
+
             const connection = await this.connectionManager.registerConnection({
               endpoint,
               connectionId: event.requestContext.connectionId,

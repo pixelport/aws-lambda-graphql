@@ -115,6 +115,11 @@ export class RedisConnectionManager implements IConnectionManager {
       id: connectionId,
       data: { endpoint, context: {}, isInitialized: false },
     };
+    console.log('[DEBUG] RedisConnectionManager.registerConnection:', {
+      connectionId,
+      endpoint,
+      connectionData: connection.data,
+    });
 
     await this.redisClient.set(
       prefixRedisKey(`connection:${connectionId}`),
@@ -133,6 +138,11 @@ export class RedisConnectionManager implements IConnectionManager {
     connection: IConnection,
     payload: string | Buffer,
   ): Promise<void> => {
+    console.log('[DEBUG] RedisConnectionManager.sendToConnection:', {
+      connectionId: connection.id,
+      endpoint: connection.data.endpoint,
+      payloadLength: payload.length,
+    });
     try {
       await this.createApiGatewayManager(connection.data.endpoint).send(
         new PostToConnectionCommand({
@@ -173,6 +183,12 @@ export class RedisConnectionManager implements IConnectionManager {
   private createApiGatewayManager(
     endpoint: string,
   ): ApiGatewayManagementApiClient {
+    console.log('[DEBUG] RedisConnectionManager.createApiGatewayManager:', {
+      endpoint,
+      isValidUrl: endpoint.startsWith('https://'),
+      customManagerExists: !!this.apiGatewayManager,
+    });
+
     if (this.apiGatewayManager) {
       return this.apiGatewayManager;
     }

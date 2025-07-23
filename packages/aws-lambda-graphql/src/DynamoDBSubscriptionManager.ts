@@ -144,19 +144,27 @@ export class DynamoDBSubscriptionManager implements ISubscriptionManager {
     this.subscriptionOperationsTableName = subscriptionOperationsTableName;
 
     // Handle both DynamoDBDocumentClient and DynamoDBClient
+    // Always ensure proper marshalling options are applied
     if (dynamoDbClient) {
-      this.db =
-        dynamoDbClient instanceof DynamoDBDocumentClient
-          ? dynamoDbClient
-          : DynamoDBDocumentClient.from(dynamoDbClient, {
-              marshallOptions: {
-                convertClassInstanceToMap: true,
-              },
-            });
+      if (dynamoDbClient instanceof DynamoDBDocumentClient) {
+        // If a DynamoDBDocumentClient is passed, warn the user about potential marshalling issues
+        console.warn(
+          '[aws-lambda-graphql] Warning: DynamoDBDocumentClient passed directly. Please ensure it was created with marshallOptions: { convertClassInstanceToMap: true, removeUndefinedValues: true } to avoid marshalling errors.',
+        );
+        this.db = dynamoDbClient;
+      } else {
+        this.db = DynamoDBDocumentClient.from(dynamoDbClient, {
+          marshallOptions: {
+            convertClassInstanceToMap: true,
+            removeUndefinedValues: true,
+          },
+        });
+      }
     } else {
       this.db = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
         marshallOptions: {
           convertClassInstanceToMap: true,
+          removeUndefinedValues: true,
         },
       });
     }

@@ -118,19 +118,27 @@ export class DynamoDBConnectionManager implements IConnectionManager {
     this.connectionsTable = connectionsTable;
 
     // Handle both DynamoDBDocumentClient and DynamoDBClient
+    // Always ensure proper marshalling options are applied
     if (dynamoDbClient) {
-      this.db =
-        dynamoDbClient instanceof DynamoDBDocumentClient
-          ? dynamoDbClient
-          : DynamoDBDocumentClient.from(dynamoDbClient, {
-              marshallOptions: {
-                convertClassInstanceToMap: true,
-              },
-            });
+      if (dynamoDbClient instanceof DynamoDBDocumentClient) {
+        // If a DynamoDBDocumentClient is passed, warn the user about potential marshalling issues
+        console.warn(
+          '[aws-lambda-graphql] Warning: DynamoDBDocumentClient passed directly. Please ensure it was created with marshallOptions: { convertClassInstanceToMap: true, removeUndefinedValues: true } to avoid marshalling errors.',
+        );
+        this.db = dynamoDbClient;
+      } else {
+        this.db = DynamoDBDocumentClient.from(dynamoDbClient, {
+          marshallOptions: {
+            convertClassInstanceToMap: true,
+            removeUndefinedValues: true,
+          },
+        });
+      }
     } else {
       this.db = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
         marshallOptions: {
           convertClassInstanceToMap: true,
+          removeUndefinedValues: true,
         },
       });
     }
@@ -204,6 +212,11 @@ export class DynamoDBConnectionManager implements IConnectionManager {
       id: connectionId,
       data: { endpoint, context: {}, isInitialized: false },
     };
+    console.log('[DEBUG] DynamoDBConnectionManager.registerConnection:', {
+      connectionId,
+      endpoint,
+      connectionData: connection.data,
+    });
     if (this.debug) console.log(`Connected ${connection.id}`, connection.data);
     await this.db.send(
       new PutCommand({
@@ -228,6 +241,11 @@ export class DynamoDBConnectionManager implements IConnectionManager {
     connection: DynamoDBConnection,
     payload: string | Buffer,
   ): Promise<void> => {
+    console.log('[DEBUG] DynamoDBConnectionManager.sendToConnection:', {
+      connectionId: connection.id,
+      endpoint: connection.data.endpoint,
+      payloadLength: payload.length,
+    });
     try {
       await this.createApiGatewayManager(connection.data.endpoint).send(
         new PostToConnectionCommand({
@@ -275,6 +293,12 @@ export class DynamoDBConnectionManager implements IConnectionManager {
   private createApiGatewayManager(
     endpoint: string,
   ): ApiGatewayManagementApiClient {
+    console.log('[DEBUG] DynamoDBConnectionManager.createApiGatewayManager:', {
+      endpoint,
+      isValidUrl: endpoint.startsWith('https://'),
+      customManagerExists: !!this.apiGatewayManager,
+    });
+
     if (this.apiGatewayManager) {
       return this.apiGatewayManager;
     }
