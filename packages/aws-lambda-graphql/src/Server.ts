@@ -309,7 +309,9 @@ export class Server<
               } catch (err) {
                 const errorResponse = formatMessage({
                   type: SERVER_EVENT_TYPES.GQL_ERROR,
-                  payload: { message: err.message },
+                  payload: {
+                    message: err instanceof Error ? err.message : String(err),
+                  },
                 });
 
                 await this.connectionManager.unregisterConnection(connection);
@@ -412,7 +414,9 @@ export class Server<
                 } catch (err) {
                   const errorResponse = formatMessage({
                     type: SERVER_EVENT_TYPES.GQL_ERROR,
-                    payload: { message: err.message },
+                    payload: {
+                      message: err instanceof Error ? err.message : String(err),
+                    },
                   });
 
                   await this.connectionManager.sendToConnection(
@@ -612,7 +616,9 @@ export class Server<
         this.onError(e);
 
         return {
-          body: e.message || 'Internal server error',
+          body:
+            (e instanceof Error ? e.message : String(e)) ||
+            'Internal server error',
           statusCode: 500,
         };
       }
