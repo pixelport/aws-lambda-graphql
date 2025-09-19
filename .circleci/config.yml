@@ -4,7 +4,7 @@ jobs:
   build:
     working_directory: ~/aws-lambda-graphql
     docker:
-      - image: cimg/node:22
+      - image: cimg/node:20
     steps:
       - checkout
       - run:
