@@ -4,7 +4,7 @@ jobs:
   build:
     working_directory: ~/aws-lambda-graphql
     docker:
-      - image: circleci/node:10.17.0
+      - image: cimg/node:22
     steps:
       - checkout
       - run:
