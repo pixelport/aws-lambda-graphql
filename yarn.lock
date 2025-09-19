@@ -4534,8 +4534,8 @@
     request "^2.88.0"
     request-promise-native "^1.0.8"
 
-"@the_pixelport/aws-lambda-graphql@^1.0.0-alpha.24", "@the_pixelport/aws-lambda-graphql@file:/Users/johann/Documents/aws-lambda-graphql/packages/aws-lambda-graphql":
-  version "1.0.1"
+"@the_pixelport/aws-lambda-graphql@file:/Users/johann/Documents/aws-lambda-graphql/packages/aws-lambda-graphql":
+  version "1.0.4"
   resolved "file:packages/aws-lambda-graphql"
   dependencies:
     "@types/aws-lambda" "^8.10.36"
@@ -6232,7 +6232,19 @@ autoprefixer@^9.4.9:
     postcss "^7.0.32"
     postcss-value-parser "^4.1.0"
 
-aws-sdk@^2.7.0, aws-sdk@^2.714.0:
+aws-lambda-graphql@^1.0.0-alpha.24:
+  version "1.0.0-alpha.24"
+  resolved "https://registry.npmjs.org/aws-lambda-graphql/-/aws-lambda-graphql-1.0.0-alpha.24.tgz"
+  integrity sha512-cOPcz/bbNGQZvqQJzsUJBqIt1x4HkdYfZ3T9h1KL9SyHSu8h8mXL67mNvrMUOkGEPmuPDfjM8UkeYVviCUtseg==
+  dependencies:
+    "@types/aws-lambda" "^8.10.36"
+    "@types/ioredis" "^4.16.6"
+    apollo-server-core "^2.9.14"
+    apollo-server-lambda "^2.9.14"
+    iterall "^1.2.2"
+    ulid "^2.3.0"
+
+aws-sdk@^2.387.0, aws-sdk@^2.7.0, aws-sdk@^2.714.0:
   version "2.814.0"
   resolved "https://registry.npmjs.org/aws-sdk/-/aws-sdk-2.814.0.tgz"
   integrity sha512-empd1m/J/MAkL6d9OeRpmg9thobULu0wk4v8W3JToaxGi2TD7PIdvE6yliZKyOVAdJINhBWEBhxR4OUIHhcGbQ==
@@ -18931,7 +18943,7 @@ serve-static@1.14.1:
   version "1.0.0-alpha.24"
   resolved "file:packages/chat-example-server"
   dependencies:
-    "@the_pixelport/aws-lambda-graphql" "^1.0.0-alpha.24"
+    aws-lambda-graphql "^1.0.0-alpha.24"
     graphql "^15.5.0"
     ulid "^2.3.0"
 

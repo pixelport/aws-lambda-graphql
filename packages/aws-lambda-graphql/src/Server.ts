@@ -49,6 +49,10 @@ export interface ServerConfig<
    */
   connectionManager: IConnectionManager;
   context?: object | ((contextParams: IContext) => object | Promise<object>);
+  /**
+   * Enable console.log
+   */
+  debug?: boolean;
   eventProcessor: IEventProcessor<TServer, TEventHandler>;
   /**
    * Use to report errors from web socket handler
@@ -133,6 +137,8 @@ export class Server<
 > extends ApolloServer {
   private connectionManager: IConnectionManager;
 
+  private debug: boolean;
+
   private eventProcessor: any;
 
   private onError: (err: any) => void;
@@ -147,6 +153,7 @@ export class Server<
   constructor({
     connectionManager,
     context,
+    debug = false,
     eventProcessor,
     onError,
     subscriptionManager,
@@ -192,6 +199,7 @@ export class Server<
     );
 
     this.connectionManager = connectionManager;
+    this.debug = debug;
     this.eventProcessor = eventProcessor;
     this.onError = onError || ((err) => console.error(err));
     this.subscriptionManager = subscriptionManager;
@@ -286,12 +294,14 @@ export class Server<
             const endpoint =
               connectionEndpoint || extractEndpointFromEvent(event);
 
-            console.log('[DEBUG] Server $connect route:', {
-              customConnectionEndpoint: connectionEndpoint,
-              extractedEndpoint: extractEndpointFromEvent(event),
-              finalEndpoint: endpoint,
-              connectionId: event.requestContext.connectionId,
-            });
+            if (this.debug) {
+              console.log('[DEBUG] Server $connect route:', {
+                customConnectionEndpoint: connectionEndpoint,
+                extractedEndpoint: extractEndpointFromEvent(event),
+                finalEndpoint: endpoint,
+                connectionId: event.requestContext.connectionId,
+              });
+            }
 
             const connection = await this.connectionManager.registerConnection({
               endpoint,
